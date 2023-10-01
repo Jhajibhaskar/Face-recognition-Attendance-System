@@ -1,6 +1,6 @@
 # Simple Face-recognition-Attendance-System
 ## Purpose:
-This project is a Face Recognition Attendance System using Python, OpenCV, and face_recognition library. It captures video from the default camera, detects faces, and recognizes them using pre-trained face encodings. It maintains attendance records in a CSV file for recognized faces.<br>
+This project is a Face Recognition Attendance System using Python, OpenCV, and face_recognition library. It captures video from the default camera, detects faces, and recognizes them using pre-trained face encodings. It maintains attendance records in a CSV file for recognized faces.<br><br>
 Upon Running a Model a CSV file will be created automatically filename as Today’s Date(YYYY-MM-DD) format & will store Name of Student as well as Reporting Time.
 ## Project Structure
 The project consists of the following main components:
@@ -37,5 +37,5 @@ The project consists of the following main components:
 ## Deployment on Streamlit
 To deploy the project on Streamlit:<br>
 ➢Run the provided Python script streamlit_app.py using: ``streamlit run streamlit_app.py``<br>
-➢Open the provided URL in your web browser to use the face recognition attendance system through the Streamlit interface.
+➢Open the provided URL in your web browser to use the face recognition attendance system through the Streamlit interface.<br>
 ➢The project is accessible through Streamlit Share, offering a web-based interface for face recognition and attendance at: https://jhajibhaskar2.streamlit.app
