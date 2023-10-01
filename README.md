@@ -1,4 +1,4 @@
-# Face-recognition-Attendance-System
+# Simple Face-recognition-Attendance-System
 ## Purpose:
 Developed a Simple Face Recognition Attendance System Which uses a image datasets to train a machine for identifying faces. & Can be used to Take Attendence of Students in Class.<br>
 Upon Running a Model a CSV file will be created automatically filename as Today’s Date(YYYY-MM-DD) format & will store Name of Student as well as Reporting Time.
