@@ -2,5 +2,3 @@ streamlit
 face_recognition @ git+https://github.com/jhajibhaskar/face_recognition
 opencv-python
 numpy
-csv
-datetime
