@@ -1,11 +1,12 @@
-import face_recognition
+import streamlit as st
+from streamlit_webrtc import webrtc_streamer, VideoProcessorBase, ClientSettings
 import cv2
 import numpy as np
 import csv
 from datetime import datetime
-import streamlit as st
+import face_recognition
 
-# Load known face encodings and names (from your original code)
+# Load known face encodings and names
 modi_image = face_recognition.load_image_file("./photos/modi.jpg")
 modi_encoding = face_recognition.face_encodings(modi_image)[0]
 
@@ -47,60 +48,51 @@ current_date = now.strftime("%Y-%m-%d")
 f = open(current_date + '.csv', 'w+', newline='')
 lnwriter = csv.writer(f)
 
-# Function to process video frames and perform face recognition
-def process_video(s):
-    present_students = []
-    video_capture = cv2.VideoCapture(0)
+# Define a custom video processor
+class CustomVideoProcessor(VideoProcessorBase):
+    def __init__(self) -> None:
+        pass
 
-    while True:
-        _, frame = video_capture.read()
+    def process(self, frame) -> None:
+        # Resize the frame to 1/4 of its original size
         small_frame = cv2.resize(frame, (0, 0), fx=0.25, fy=0.25)
         rgb_small_frame = small_frame[:, :, ::-1]
 
-        if s:
-            face_locations = face_recognition.face_locations(rgb_small_frame)
-            face_encodings = face_recognition.face_encodings(rgb_small_frame, face_locations)
-            face_names = []
-            for face_encoding in face_encodings:
-                matches = face_recognition.compare_faces(known_face_encoding, face_encoding)
-                name = ""
-                face_distance = face_recognition.face_distance(known_face_encoding, face_encoding)
-                best_match_index = np.argmin(face_distance)
-                if matches[best_match_index]:
-                    name = known_faces_names[best_match_index]
+        face_locations = face_recognition.face_locations(rgb_small_frame)
+        face_encodings = face_recognition.face_encodings(rgb_small_frame, face_locations)
+        face_names = []
+        for face_encoding in face_encodings:
+            matches = face_recognition.compare_faces(known_face_encoding, face_encoding)
+            name = ""
+            face_distance = face_recognition.face_distance(known_face_encoding, face_encoding)
+            best_match_index = np.argmin(face_distance)
+            if matches[best_match_index]:
+                name = known_faces_names[best_match_index]
 
-                face_names.append(name)
-                if name in known_faces_names:
-                    font = cv2.FONT_HERSHEY_SIMPLEX
-                    bottomLeftCornerOfText = (10, 100)
-                    fontScale = 1.5
-                    fontColor = (255, 0, 0)
-                    thickness = 3
-                    lineType = 2
+            face_names.append(name)
+            if name in known_faces_names:
+                font = cv2.FONT_HERSHEY_SIMPLEX
+                bottomLeftCornerOfText = (10, 100)
+                fontScale = 1.5
+                fontColor = (255, 0, 0)
+                thickness = 3
+                lineType = 2
 
-                    cv2.putText(frame, name + ' Present',
-                                bottomLeftCornerOfText,
-                                font,
-                                fontScale,
-                                fontColor,
-                                thickness,
-                                lineType)
+                cv2.putText(frame, name + ' Present',
+                            bottomLeftCornerOfText,
+                            font,
+                            fontScale,
+                            fontColor,
+                            thickness,
+                            lineType)
 
-                    if name in students:
-                        present_students.append((name, now.strftime("%H:%M:%S")))
-                        print(name, "is Present")
-                        students.remove(name)
-                        print("Left Students Name: ", students)
-                        current_time = now.strftime("%H-%M-%S")
-                        lnwriter.writerow([name, current_time])
-        cv2.imshow("Attendance System", frame)
-
-        if cv2.waitKey(1) & 0xFF == ord('q'):
-            break
-
-    video_capture.release()
-    cv2.destroyAllWindows()
-    return present_students
+                if name in students:
+                    present_students.append((name, now.strftime("%H:%M:%S")))
+                    print(name, "is Present")
+                    students.remove(name)
+                    print("Left Students Name: ", students)
+                    current_time = now.strftime("%H-%M-%S")
+                    lnwriter.writerow([name, current_time])
 
 # Streamlit app
 st.title("Simple Face Recognition Attendance System")
@@ -108,10 +100,18 @@ st.title("Simple Face Recognition Attendance System")
 # Run the video processing function when 'Start Attendance' button is clicked
 if st.button("Start Attendance"):
     st.write("Starting attendance...")
-    present_students = process_video(True)  # Pass True to indicate face recognition is enabled
+    webrtc_ctx = webrtc_streamer(
+        key="example",
+        video_processor_factory=CustomVideoProcessor,
+        client_settings=ClientSettings(),
+    )
+
+    if webrtc_ctx.video_transformer:
+        webrtc_ctx.video_transformer.input_frame()
 
     st.write("Today's Date:", now.strftime("%d-%m-%Y"))
 
+    present_students = []  # You need to populate this with recognized students
     if present_students:
         st.write("Students who are present today are:")
         for student, time in present_students:
