@@ -54,7 +54,7 @@ def process_video(s):
 
     while True:
         _, frame = video_capture.read()
-        small_frame = cv2.resize(frame, (0, 0), fx=0.25, fy=0.25)
+        small_frame = cv2.resize(frame, (frame.shape[1] // 4, frame.shape[0] // 4))
         rgb_small_frame = small_frame[:, :, ::-1]
 
         if s:
