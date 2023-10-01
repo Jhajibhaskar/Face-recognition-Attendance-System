@@ -1,12 +1,13 @@
+import streamlit as st
+from streamlit_webrtc import webrtc_streamer, VideoProcessorBase
+import av
 import face_recognition
 import cv2
 import numpy as np
 import csv
 from datetime import datetime
-import streamlit as st
-import streamlit_webrtc as webrtc
 
-# Load known face encodings and names (from your original code)
+# Load known face encodings and names
 modi_image = face_recognition.load_image_file("./photos/modi.jpg")
 modi_encoding = face_recognition.face_encodings(modi_image)[0]
 
@@ -48,49 +49,73 @@ current_date = now.strftime("%Y-%m-%d")
 f = open(current_date + '.csv', 'w+', newline='')
 lnwriter = csv.writer(f)
 
-# Function to process video frames and perform face recognition
-def process_video(frame):
-  face_locations = face_recognition.face_locations(frame)
-  face_encodings = face_recognition.face_encodings(frame, face_locations)
-  face_names = []
+class FaceRecognitionProcessor(VideoProcessorBase):
+    def __init__(self):
+        self.present_students = []
 
-  for face_encoding in face_encodings:
-    matches = face_recognition.compare_faces(known_face_encoding, face_encoding)
-    name = ""
-    face_distance = face_recognition.face_distance(known_face_encoding, face_encoding)
-    best_match_index = np.argmin(face_distance)
-    if matches[best_match_index]:
-      name = known_faces_names[best_match_index]
+    def recv(self, frame: av.VideoFrame) -> av.VideoFrame:
+        img = frame.to_ndarray(format="bgr24")
+        small_frame = cv2.resize(img, (0, 0), fx=0.25, fy=0.25)
+        rgb_small_frame = small_frame[:, :, ::-1]
 
-    face_names.append(name)
+        face_locations = face_recognition.face_locations(rgb_small_frame)
+        face_encodings = face_recognition.face_encodings(rgb_small_frame, face_locations)
+        face_names = []
 
-  return frame, face_names
+        for face_encoding in face_encodings:
+            matches = face_recognition.compare_faces(known_face_encoding, face_encoding)
+            name = ""
+            face_distance = face_recognition.face_distance(known_face_encoding, face_encoding)
+            best_match_index = np.argmin(face_distance)
+            if matches[best_match_index]:
+                name = known_faces_names[best_match_index]
+
+            face_names.append(name)
+            if name in known_faces_names:
+                if name in students:
+                    self.present_students.append((name, now.strftime("%H:%M:%S")))
+                    print(name, "is Present")
+                    students.remove(name)
+                    print("Left Students Name: ", students)
+                    current_time = now.strftime("%H-%M-%S")
+                    lnwriter.writerow([name, current_time])
+
+        for (top, right, bottom, left), name in zip(face_locations, face_names):
+            top *= 4
+            right *= 4
+            bottom *= 4
+            left *= 4
+
+            cv2.rectangle(img, (left, top), (right, bottom), (0, 255, 0), 2)
+            cv2.rectangle(img, (left, bottom - 35), (right, bottom), (0, 255, 0), cv2.FILLED)
+            font = cv2.FONT_HERSHEY_DUPLEX
+            cv2.putText(img, name, (left + 6, bottom - 6), font, 1.0, (255, 255, 255), 1)
+
+        return av.VideoFrame.from_ndarray(img, format="bgr24")
 
 # Streamlit app
-st.title("Simple Face Recognition Attendance System")
+st.title("Face Recognition Attendance System")
 
 # Run the video processing function when 'Start Attendance' button is clicked
 if st.button("Start Attendance"):
-  st.write("Starting attendance...")
+    st.write("Starting attendance...")
+    present_students = []
+    processor = FaceRecognitionProcessor()
+    webrtc_ctx = webrtc_streamer(
+        key="example",
+        video_processor_factory=FaceRecognitionProcessor,
+        async_processing=True,
+    )
+    if webrtc_ctx.video_processor:
+        with st.spinner("Waiting for video..."):
+            while not webrtc_ctx.video_processor.present_students:
+                pass
+            present_students = webrtc_ctx.video_processor.present_students
+        st.write("Today's Date:", now.strftime("%d-%m-%Y"))
 
-  # Create a webrtc video stream
-  stream = webrtc.VideoStream()
-
-  # Start the video stream
-  stream.start()
-
-  # Process each frame of the video stream
-  while True:
-    frame = stream.read()
-    processed_frame, face_names = process_video(frame)
-
-    # Display the processed frame to the user
-    stream.write(processed_frame)
-
-    # Write the attendance to the CSV file
-    for name in face_names:
-      current_time = now.strftime("%H-%M-%S")
-      lnwriter.writerow([name, current_time])
-
+        if present_students:
+            st.write("Students who are present today are:")
+            for student, time in present_students:
+                st.write(f"- {student} - {time}")
 else:
-  st.write("Click the 'Start Attendance' button to begin.")
+    st.write("Click the 'Start Attendance' button to begin.")
