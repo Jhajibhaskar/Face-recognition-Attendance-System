@@ -8,38 +8,22 @@ import csv
 from datetime import datetime
 
 # Load known face encodings and names
-modi_image = face_recognition.load_image_file("./photos/modi.jpg")
-modi_encoding = face_recognition.face_encodings(modi_image)[0]
+def load_face_encoding(image_path):
+    image = face_recognition.load_image_file(image_path)
+    return face_recognition.face_encodings(image)[0]
 
-ratan_tata_image = face_recognition.load_image_file("./photos/ratantata.jpg")
-ratan_tata_encoding = face_recognition.face_encodings(ratan_tata_image)[0]
-
-ujjwal_image = face_recognition.load_image_file("./photos/ujjwal.jpeg")
-ujjwal_encoding = face_recognition.face_encodings(ujjwal_image)[0]
-
-vivek_image = face_recognition.load_image_file("./photos/vivek.jpeg")
-vivek_encoding = face_recognition.face_encodings(vivek_image)[0]
-
-sir_image = face_recognition.load_image_file("./photos/sir.jpg")
-sir_encoding = face_recognition.face_encodings(sir_image)[0]
-
-known_face_encoding = [
-    modi_encoding,
-    ratan_tata_encoding,
-    ujjwal_encoding,
-    vivek_encoding,
-    sir_encoding
+known_faces = [
+    ("Narendra Modi", "./photos/modi.jpg"),
+    ("Ratan Tata", "./photos/ratantata.jpg"),
+    ("Ujjwal Kumar", "./photos/ujjwal.jpeg"),
+    ("Vivek Kumar", "./photos/vivek.jpeg"),
+    ("Dr. R Chandrasekar", "./photos/sir.jpg")
 ]
 
-known_faces_names = [
-    "Narendra Modi",
-    "Ratan Tata",
-    "Ujjwal Kumar",
-    "Vivek Kumar",
-    "Dr. R Chandrasekar"
-]
+known_face_encodings = [load_face_encoding(face[1]) for face in known_faces]
+known_face_names = [face[0] for face in known_faces]
 
-students = known_faces_names.copy()
+students = known_face_names.copy()
 
 # Get the current date for the CSV file
 now = datetime.now()
@@ -55,23 +39,22 @@ class FaceRecognitionProcessor(VideoProcessorBase):
 
     def recv(self, frame: av.VideoFrame) -> av.VideoFrame:
         img = frame.to_ndarray(format="bgr24")
-        small_frame = cv2.resize(img, (0, 0), fx=0.25, fy=0.25)
-        rgb_small_frame = small_frame[:, :, ::-1]
+        rgb_img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
 
-        face_locations = face_recognition.face_locations(rgb_small_frame)
-        face_encodings = face_recognition.face_encodings(rgb_small_frame, face_locations)
+        face_locations = face_recognition.face_locations(rgb_img)
+        face_encodings = face_recognition.face_encodings(rgb_img, face_locations)
         face_names = []
 
         for face_encoding in face_encodings:
-            matches = face_recognition.compare_faces(known_face_encoding, face_encoding)
+            matches = face_recognition.compare_faces(known_face_encodings, face_encoding)
             name = ""
-            face_distance = face_recognition.face_distance(known_face_encoding, face_encoding)
+            face_distance = face_recognition.face_distance(known_face_encodings, face_encoding)
             best_match_index = np.argmin(face_distance)
             if matches[best_match_index]:
-                name = known_faces_names[best_match_index]
+                name = known_face_names[best_match_index]
 
             face_names.append(name)
-            if name in known_faces_names:
+            if name in known_face_names:
                 if name in students:
                     self.present_students.append((name, now.strftime("%H:%M:%S")))
                     print(name, "is Present")
@@ -81,11 +64,6 @@ class FaceRecognitionProcessor(VideoProcessorBase):
                     lnwriter.writerow([name, current_time])
 
         for (top, right, bottom, left), name in zip(face_locations, face_names):
-            top *= 4
-            right *= 4
-            bottom *= 4
-            left *= 4
-
             cv2.rectangle(img, (left, top), (right, bottom), (0, 255, 0), 2)
             cv2.rectangle(img, (left, bottom - 35), (right, bottom), (0, 255, 0), cv2.FILLED)
             font = cv2.FONT_HERSHEY_DUPLEX
