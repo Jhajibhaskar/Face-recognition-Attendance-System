@@ -6,12 +6,23 @@ import cv2
 import numpy as np
 import csv
 from datetime import datetime
+import os
+
+# Helper function to load and encode a face image
+def load_face_encoding(image_path):
+    try:
+        image = face_recognition.load_image_file(image_path)
+        encodings = face_recognition.face_encodings(image)
+        if len(encodings) > 0:
+            return encodings[0]
+        else:
+            st.error(f"No faces found in the image {image_path}.")
+            return None
+    except Exception as e:
+        st.error(f"Error loading {image_path}: {e}")
+        return None
 
 # Load known face encodings and names
-def load_face_encoding(image_path):
-    image = face_recognition.load_image_file(image_path)
-    return face_recognition.face_encodings(image)[0]
-
 known_faces = [
     ("Narendra Modi", "./photos/modi.jpg"),
     ("Ratan Tata", "./photos/ratantata.jpg"),
@@ -20,8 +31,9 @@ known_faces = [
     ("Dr. R Chandrasekar", "./photos/sir.jpg")
 ]
 
-known_face_encodings = [load_face_encoding(face[1]) for face in known_faces]
-known_face_names = [face[0] for face in known_faces]
+# Filter out None values in case any images fail to load
+known_face_encodings = [encoding for encoding in (load_face_encoding(face[1]) for face in known_faces) if encoding is not None]
+known_face_names = [face[0] for face in known_faces if load_face_encoding(face[1]) is not None]
 
 students = known_face_names.copy()
 
